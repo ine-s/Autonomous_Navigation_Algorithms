@@ -1,14 +1,19 @@
 import heapq
 import random
 import math
+import os
 
 # Pour la visualisation graphique (Question 2)
 try:
+    import matplotlib
+    matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     import matplotlib.patches as patches
     from matplotlib.colors import ListedColormap
     import numpy as np
     MATPLOTLIB_AVAILABLE = True
+    OUTPUT_DIR = "output_images"
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
     print("Note: matplotlib non disponible. Installer avec 'pip install matplotlib numpy' pour la visualisation graphique.")
@@ -667,7 +672,10 @@ class Maze:
         
         fig.suptitle("Comparaison DIJKSTRA vs A*", fontsize=14, fontweight='bold')
         plt.tight_layout()
-        plt.show()
+        filename = f"{OUTPUT_DIR}/compare_dijkstra_astar.png"
+        plt.savefig(filename, dpi=150, bbox_inches='tight')
+        plt.close()
+        print(f"Image sauvegardée: {filename}")
     
     # ==================== FIN QUESTION 3 ====================
     
@@ -796,8 +804,12 @@ class Maze:
         if save_file:
             plt.savefig(save_file, dpi=150, bbox_inches='tight')
             print(f"Image sauvegardée: {save_file}")
+        else:
+            filename = f"{OUTPUT_DIR}/{title.replace(' ', '_').replace('*', 'star')}.png"
+            plt.savefig(filename, dpi=150, bbox_inches='tight')
+            print(f"Image sauvegardée: {filename}")
         
-        plt.show()
+        plt.close()
     
     def compare_paths(self, title="Comparaison: 4 directions vs 8 directions (diagonales)"):
         """
@@ -865,315 +877,148 @@ class Maze:
         
         fig.suptitle(title, fontsize=14, fontweight='bold')
         plt.tight_layout()
-        plt.show()
+        filename = f"{OUTPUT_DIR}/compare_4dir_8dir.png"
+        plt.savefig(filename, dpi=150, bbox_inches='tight')
+        plt.close()
+        print(f"Image sauvegardée: {filename}")
     
     # ==================== FIN QUESTION 2 ====================
+    
+    # ==================== QUESTION 4 : Test avec poids négatifs ====================
+    
+    def test_negative_weights(self):
+        """
+        Question 4: Teste les algorithmes Dijkstra et A* avec des poids négatifs.
+        Retourne les résultats pour analyse dans le compte rendu.
+        """
+        # Créer un labyrinthe avec des poids négatifs (bonus)
+        maze = Maze.create_empty(10, 10, start=(1, 1), goal=(8, 8))
+        negative_cells = [(3, 3), (4, 4), (5, 5), (6, 6)]
+        for (i, j) in negative_cells:
+            maze.rewards[i][j] = -2
+        
+        results = {
+            'maze_size': (maze.height, maze.width),
+            'negative_cells': negative_cells,
+            'dijkstra': None,
+            'astar': None
+        }
+        
+        # Test Dijkstra
+        try:
+            path_dij, nodes_dij = maze.solve_dijkstra(
+                maze.start[0], maze.start[1], maze.goal[0], maze.goal[1])
+            results['dijkstra'] = {'path_len': len(path_dij) if path_dij else 0, 'nodes': nodes_dij}
+        except Exception as e:
+            results['dijkstra'] = {'error': str(e)}
+        
+        # Test A*
+        try:
+            path_astar, nodes_astar = maze.solve_astar(
+                maze.start[0], maze.start[1], maze.goal[0], maze.goal[1])
+            results['astar'] = {'path_len': len(path_astar) if path_astar else 0, 'nodes': nodes_astar}
+        except Exception as e:
+            results['astar'] = {'error': str(e)}
+        
+        return results
 
 
 # Code de test
 if __name__ == "__main__":
-    print("=" * 50)
-    print("TEST PARTIE A : Chargement depuis fichier")
-    print("=" * 50)
-    
     # Charger le labyrinthe
     maze = Maze("labyrinthe.txt")
-    
-    print("Labyrinthe original:")
     maze.display()
     
-    print(f"\nDépart: {maze.start}, Arrivée: {maze.goal}")
-    print(f"Dimensions: {maze.height} x {maze.width}")
-    
-    print("\n" + "=" * 50)
-    print("TEST PARTIE B : Génération de labyrinthe")
-    print("=" * 50)
-    
-    # Créer un labyrinthe vide 25x25
+    # Créer labyrinthe avec obstacles aléatoires
     maze2 = Maze.create_empty(25, 25, start=(1, 1), goal=(23, 23))
-    
-    print("\n--- Labyrinthe avec obstacles ALÉATOIRES (densité 15%) ---")
     maze2.generate_obstacles_random(density=0.15, seed=42)
-    maze2.display()
     
-    # Test génération déterministe
-    print("\n--- Labyrinthe avec obstacles DÉTERMINISTES (grille) ---")
+    # Créer labyrinthe avec obstacles déterministes
     maze3 = Maze.create_empty(25, 25, start=(1, 1), goal=(23, 23))
     maze3.generate_obstacles_deterministic(pattern='grid', spacing=5)
-    maze3.display()
     
-    # Afficher la matrice de récompense
-    print("\n--- Matrice de récompense (extrait 5x5) ---")
-    print("Légende: -1 = pénalité déplacement, 100 = arrivée, -inf = mur")
-    for i in range(5):
-        row = [f"{maze3.rewards[i][j]:>5}" if maze3.rewards[i][j] != float('-inf') else " -inf" 
-               for j in range(5)]
-        print(" ".join(row))
-    
-    print("\n" + "=" * 50)
-    print("TEST PARTIE C : Algorithme A*")
-    print("=" * 50)
-    
-    # Résoudre le labyrinthe chargé depuis fichier
-    print("\n--- Résolution du labyrinthe (fichier) avec A* ---")
+    # Résolution A*
     path = maze.solve(maze.start[0], maze.start[1], maze.goal[0], maze.goal[1])
-    
     if path:
-        print(f"Chemin trouvé ({len(path)} cellules):")
         maze.display(path)
-    else:
-        print("Aucun chemin trouvé!")
     
-    # Résoudre le labyrinthe généré aléatoirement
-    print("\n--- Résolution du labyrinthe aléatoire avec A* ---")
-    path2 = maze2.solve(maze2.start[0], maze2.start[1], maze2.goal[0], maze2.goal[1])
+    # Résolution Dijkstra
+    path_dij, _ = maze.solve_dijkstra(maze.start[0], maze.start[1], maze.goal[0], maze.goal[1])
     
-    if path2:
-        print(f"Chemin trouvé ({len(path2)} cellules):")
-        maze2.display(path2)
-    else:
-        print("Aucun chemin trouvé!")
+    # Visualisation graphique
+    if MATPLOTLIB_AVAILABLE:
+        maze.display_graphical(path, title="A*")
+        maze.display_graphical(path_dij, title="Dijkstra")
+        
+        path2 = maze2.solve(maze2.start[0], maze2.start[1], maze2.goal[0], maze2.goal[1])
+        maze2.display_graphical(path2, title="Labyrinthe aléatoire - A*")
+        
+        path3 = maze3.solve(maze3.start[0], maze3.start[1], maze3.goal[0], maze3.goal[1])
+        maze3.display_graphical(path3, title="Labyrinthe déterministe - A*")
     
-    # Résoudre le labyrinthe déterministe
-    print("\n--- Résolution du labyrinthe déterministe avec A* ---")
-    path3 = maze3.solve(maze3.start[0], maze3.start[1], maze3.goal[0], maze3.goal[1])
-    
-    if path3:
-        print(f"Chemin trouvé ({len(path3)} cellules):")
-        maze3.display(path3)
-    else:
-        print("Aucun chemin trouvé!")
-    
-    # ==================== PARTIE 7 : Travaux et Questions ====================
-    print("\n" + "=" * 60)
-    print("PARTIE 7 - Question 1 : Tests de validation")
-    print("=" * 60)
-    
-    # ----- TEST 1: Labyrinthe SANS obstacle -----
-    print("\n" + "-" * 50)
-    print("TEST 1: Labyrinthe SANS obstacle (15x15)")
-    print("-" * 50)
-    
+    # Tests de validation Question 1
     maze_empty = Maze.create_empty(15, 15, start=(1, 1), goal=(13, 13))
-    # Pas d'obstacles générés, juste les murs de bordure
-    print("Labyrinthe vide:")
-    maze_empty.display()
-    
-    # Vérification des contraintes départ/arrivée
-    print(f"\nDépart: {maze_empty.start} - Cellule: '{maze_empty.grid[maze_empty.start[0]][maze_empty.start[1]]}'")
-    print(f"Arrivée: {maze_empty.goal} - Cellule: '{maze_empty.grid[maze_empty.goal[0]][maze_empty.goal[1]]}'")
-    print(f"✓ Départ franchissable: {maze_empty.is_valid(*maze_empty.start)}")
-    print(f"✓ Arrivée franchissable: {maze_empty.is_valid(*maze_empty.goal)}")
-    
     path_empty = maze_empty.solve(maze_empty.start[0], maze_empty.start[1], 
                                    maze_empty.goal[0], maze_empty.goal[1])
-    if path_empty:
-        print(f"\nChemin trouvé ({len(path_empty)} cellules):")
-        maze_empty.display(path_empty)
-    else:
-        print("\nAucun chemin trouvé!")
-    
-    # ----- TEST 2: Labyrinthe avec obstacles SIMPLES -----
-    print("\n" + "-" * 50)
-    print("TEST 2: Labyrinthe avec obstacles SIMPLES (15x15)")
-    print("-" * 50)
     
     maze_simple = Maze.create_empty(15, 15, start=(1, 1), goal=(13, 13))
-    # Ajouter quelques obstacles manuellement (mur vertical avec passage)
     for i in range(2, 12):
-        maze_simple.grid[i][7] = '#'  # Mur vertical au milieu
-    maze_simple.grid[6][7] = '.'  # Passage dans le mur
+        maze_simple.grid[i][7] = '#'
+    maze_simple.grid[6][7] = '.'
     maze_simple.init_rewards()
-    
-    print("Labyrinthe avec mur vertical et passage:")
-    maze_simple.display()
-    
-    # Vérification des contraintes
-    print(f"\nDépart: {maze_simple.start} - Franchissable: {maze_simple.is_valid(*maze_simple.start)}")
-    print(f"Arrivée: {maze_simple.goal} - Franchissable: {maze_simple.is_valid(*maze_simple.goal)}")
-    
     path_simple = maze_simple.solve(maze_simple.start[0], maze_simple.start[1],
                                      maze_simple.goal[0], maze_simple.goal[1])
-    if path_simple:
-        print(f"\nChemin trouvé ({len(path_simple)} cellules):")
-        maze_simple.display(path_simple)
-    else:
-        print("\nAucun chemin trouvé!")
-    
-    # ----- TEST 3: Labyrinthe SANS chemin possible -----
-    print("\n" + "-" * 50)
-    print("TEST 3: Labyrinthe SANS chemin possible (15x15)")
-    print("-" * 50)
     
     maze_blocked = Maze.create_empty(15, 15, start=(1, 1), goal=(13, 13))
-    # Créer un mur complet qui bloque le passage
     for i in range(1, 14):
-        maze_blocked.grid[i][7] = '#'  # Mur vertical COMPLET (sans passage)
+        maze_blocked.grid[i][7] = '#'
     maze_blocked.init_rewards()
-    
-    print("Labyrinthe avec mur BLOQUANT:")
-    maze_blocked.display()
-    
-    # Vérification des contraintes (départ et arrivée doivent rester franchissables)
-    print(f"\nDépart: {maze_blocked.start} - Franchissable: {maze_blocked.is_valid(*maze_blocked.start)}")
-    print(f"Arrivée: {maze_blocked.goal} - Franchissable: {maze_blocked.is_valid(*maze_blocked.goal)}")
-    
     path_blocked = maze_blocked.solve(maze_blocked.start[0], maze_blocked.start[1],
                                        maze_blocked.goal[0], maze_blocked.goal[1])
-    if path_blocked:
-        print(f"\nChemin trouvé ({len(path_blocked)} cellules):")
-        maze_blocked.display(path_blocked)
-    else:
-        print("\n✗ Aucun chemin trouvé! (comportement attendu)")
     
-    # ----- Résumé des tests -----
-    print("\n" + "=" * 60)
-    print("RÉSUMÉ DES TESTS - Question 1")
-    print("=" * 60)
-    print(f"Test 1 (sans obstacle)     : {'✓ PASS' if path_empty else '✗ FAIL'}")
-    print(f"Test 2 (obstacles simples) : {'✓ PASS' if path_simple else '✗ FAIL'}")
-    print(f"Test 3 (sans chemin)       : {'✓ PASS' if not path_blocked else '✗ FAIL'}")
-    print(f"Contraintes départ/arrivée : ✓ Toujours respectées")
-    
-    # ==================== QUESTION 2 : Déplacements diagonaux et visualisation ====================
-    print("\n" + "=" * 60)
-    print("PARTIE 7 - Question 2 : Diagonales et visualisation graphique")
-    print("=" * 60)
-    
-    # ----- Test des déplacements diagonaux -----
-    print("\n" + "-" * 50)
-    print("TEST: Comparaison 4 directions vs 8 directions (diagonales)")
-    print("-" * 50)
-    
+    # Question 2: Diagonales
+
+    # Génération des images pour le compte rendu universitaire (Tests 1, 2, 3)
+    if MATPLOTLIB_AVAILABLE:
+        # Test 1 : Labyrinthe vide
+        maze_empty.display_graphical(path_empty, title="Labyrinthe vide (Test 1)", save_file="output_images/labyrinthe_vide_test1.png")
+        # Test 2 : Obstacles simples
+        maze_simple.display_graphical(path_simple, title="Labyrinthe obstacles simples (Test 2)", save_file="output_images/labyrinthe_obstacles_test2.png")
+        # Test 3 : Labyrinthe bloqué
+        maze_blocked.display_graphical(path_blocked, title="Labyrinthe bloqué (Test 3)", save_file="output_images/labyrinthe_bloque_test3.png")
     maze_diag = Maze.create_empty(20, 20, start=(1, 1), goal=(18, 18))
     maze_diag.generate_obstacles_random(density=0.1, seed=123)
     
-    # Résolution avec 4 directions (standard)
     path_4dir = maze_diag.solve(maze_diag.start[0], maze_diag.start[1],
-                                 maze_diag.goal[0], maze_diag.goal[1], 
-                                 allow_diagonal=False)
-    
-    # Résolution avec 8 directions (diagonales)
+                                 maze_diag.goal[0], maze_diag.goal[1], allow_diagonal=False)
     path_8dir = maze_diag.solve(maze_diag.start[0], maze_diag.start[1],
-                                 maze_diag.goal[0], maze_diag.goal[1], 
-                                 allow_diagonal=True)
-    
-    print("\n--- Sans diagonales (4 directions) ---")
-    if path_4dir:
-        print(f"Chemin trouvé: {len(path_4dir)} cellules")
-        maze_diag.display(path_4dir)
-    else:
-        print("Aucun chemin trouvé!")
-    
-    print("\n--- Avec diagonales (8 directions, coût √2 ≈ 1.414) ---")
-    if path_8dir:
-        print(f"Chemin trouvé: {len(path_8dir)} cellules")
-        maze_diag.display(path_8dir)
-    else:
-        print("Aucun chemin trouvé!")
-    
-    # Comparaison
-    print("\n--- Comparaison des résultats ---")
-    if path_4dir and path_8dir:
-        print(f"4 directions: {len(path_4dir)} cellules")
-        print(f"8 directions: {len(path_8dir)} cellules")
-        print(f"Gain: {len(path_4dir) - len(path_8dir)} cellules en moins avec les diagonales")
-    
-    # ----- Visualisation graphique -----
-    print("\n" + "-" * 50)
-    print("TEST: Visualisation graphique (matplotlib)")
-    print("-" * 50)
+                                 maze_diag.goal[0], maze_diag.goal[1], allow_diagonal=True)
     
     if MATPLOTLIB_AVAILABLE:
-        print("Affichage de la visualisation graphique...")
-        
-        # Visualisation simple
-        maze_diag.display_graphical(path_8dir, 
-                                     title="Labyrinthe résolu avec diagonales (A*)")
-        
-        # Comparaison côte à côte
+        maze_diag.display_graphical(path_4dir, title="A* (4 directions)")
+        maze_diag.display_graphical(path_8dir, title="A* (8 directions)")
         maze_diag.compare_paths()
-        
-        print("✓ Visualisation graphique terminée!")
-    else:
-        print("⚠ matplotlib non disponible. Pour activer la visualisation graphique:")
-        print("  pip install matplotlib numpy")
     
-    # ==================== QUESTION 3 : Comparaison Dijkstra vs A* ====================
-    print("\n" + "=" * 60)
-    print("PARTIE 7 - Question 3 : Comparaison Dijkstra vs A*")
-    print("=" * 60)
-    
-    # ----- Test sur petit labyrinthe -----
-    print("\n" + "-" * 50)
-    print("TEST 1: Petit labyrinthe (15x15)")
-    print("-" * 50)
-    
+    # Question 3: Comparaison Dijkstra vs A*
     maze_small = Maze.create_empty(15, 15, start=(1, 1), goal=(13, 13))
     maze_small.generate_obstacles_random(density=0.15, seed=42)
-    maze_small.display()
-    maze_small.compare_algorithms(allow_diagonal=False)
-    
-    # ----- Test sur labyrinthe moyen -----
-    print("\n" + "-" * 50)
-    print("TEST 2: Labyrinthe moyen (30x30)")
-    print("-" * 50)
+    results_small = maze_small.compare_algorithms(allow_diagonal=False, verbose=False)
     
     maze_medium = Maze.create_empty(30, 30, start=(1, 1), goal=(28, 28))
     maze_medium.generate_obstacles_random(density=0.2, seed=123)
-    maze_medium.compare_algorithms(allow_diagonal=False)
-    
-    # ----- Test sur grand labyrinthe -----
-    print("\n" + "-" * 50)
-    print("TEST 3: Grand labyrinthe (50x50)")
-    print("-" * 50)
+    results_medium = maze_medium.compare_algorithms(allow_diagonal=False, verbose=False)
     
     maze_large = Maze.create_empty(50, 50, start=(1, 1), goal=(48, 48))
     maze_large.generate_obstacles_random(density=0.25, seed=456)
-    maze_large.compare_algorithms(allow_diagonal=False)
+    results_large = maze_large.compare_algorithms(allow_diagonal=False, verbose=False)
     
-    # ----- Test avec diagonales -----
-    print("\n" + "-" * 50)
-    print("TEST 4: Comparaison avec déplacements diagonaux (30x30)")
-    print("-" * 50)
+    results_medium_diag = maze_medium.compare_algorithms(allow_diagonal=True, verbose=False)
     
-    maze_medium.compare_algorithms(allow_diagonal=True)
-    
-    # ----- Visualisation graphique de la comparaison -----
     if MATPLOTLIB_AVAILABLE:
-        print("\n" + "-" * 50)
-        print("Visualisation graphique Dijkstra vs A*")
-        print("-" * 50)
         maze_small.compare_graphical(allow_diagonal=False)
+        maze_medium.compare_graphical(allow_diagonal=False)
+        maze_medium.compare_graphical(allow_diagonal=True)
     
-    # ----- Résumé théorique -----
-    print("\n" + "=" * 60)
-    print("RÉSUMÉ THÉORIQUE : Dijkstra vs A*")
-    print("=" * 60)
-    print("""
-┌─────────────────────────────────────────────────────────────┐
-│                    DIJKSTRA vs A*                           │
-├─────────────────────────────────────────────────────────────┤
-│ DIJKSTRA:                                                   │
-│  - Explore toutes les directions uniformément               │
-│  - Garantit le chemin optimal                               │
-│  - Pas d'heuristique (exploration "aveugle")                │
-│  - Complexité: O((V + E) log V)                             │
-│                                                             │
-│ A*:                                                         │
-│  - Utilise une heuristique pour guider la recherche         │
-│  - Garantit le chemin optimal (si heuristique admissible)   │
-│  - Explore prioritairement vers l'arrivée                   │
-│  - Généralement plus rapide que Dijkstra                    │
-│  - Complexité: O((V + E) log V) mais moins de nœuds         │
-│                                                             │
-│ HEURISTIQUES UTILISÉES:                                     │
-│  - 4 directions: Manhattan (|dx| + |dy|)                    │
-│  - 8 directions: Diagonale (√2 * min + |diff|)              │
-│                                                             │
-│ CONCLUSION:                                                 │
-│  A* est généralement plus efficace car l'heuristique        │
-│  réduit l'espace de recherche. Les deux garantissent        │
-│  un chemin optimal, mais A* y arrive plus vite.             │
-└─────────────────────────────────────────────────────────────┘
-""")
+    # Question 4: Test avec poids négatifs 
+    results_q4 = maze.test_negative_weights()
+
